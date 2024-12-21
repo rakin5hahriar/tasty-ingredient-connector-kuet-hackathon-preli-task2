@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Send, CookingPot } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Send, CookingPot, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
@@ -11,21 +11,90 @@ interface Message {
   sender: "user" | "bot";
 }
 
-interface ChatResponse {
-  text: string;
+interface Recipe {
+  id: string;
+  title: string;
+  description?: string;
+  instructions?: string;
+  file_path?: string;
 }
 
 const RecipeChat = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: "Hello! I'm your recipe assistant. What would you like to cook today? I can suggest recipes based on your available ingredients or specific preferences.",
+      text: "Hello! I'm your recipe assistant. What would you like to cook today? I can suggest recipes based on your available ingredients or specific preferences. You can also upload recipe files or images!",
       sender: "bot",
     },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchRecipes();
+  }, []);
+
+  const fetchRecipes = async () => {
+    const { data, error } = await supabase
+      .from('recipes')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      toast({
+        title: "Error fetching recipes",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setRecipes(data || []);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${crypto.randomUUID()}.${fileExt}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('recipes')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { error: dbError } = await supabase
+        .from('recipes')
+        .insert({
+          title: file.name.replace(`.${fileExt}`, ''),
+          file_path: filePath,
+          file_type: file.type,
+        });
+
+      if (dbError) throw dbError;
+
+      toast({
+        title: "Recipe uploaded",
+        description: "Your recipe file has been uploaded successfully.",
+      });
+
+      fetchRecipes();
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -41,7 +110,6 @@ const RecipeChat = () => {
     setIsLoading(true);
 
     try {
-      // Get available ingredients from the ingredients list
       const { data: ingredients } = await supabase
         .from('ingredients')
         .select('name')
@@ -62,7 +130,7 @@ const RecipeChat = () => {
       };
 
       setMessages((prev) => [...prev, botMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
       toast({
         title: "Error",
@@ -80,18 +148,36 @@ const RecipeChat = () => {
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`chat-message ${
-              message.sender === "user" ? "user-message" : "bot-message"
-            }`}
+            className={`p-3 rounded-lg ${
+              message.sender === "user"
+                ? "bg-primary/10 ml-auto"
+                : "bg-secondary/10"
+            } max-w-[80%]`}
           >
             {message.sender === "bot" && (
               <CookingPot className="h-4 w-4 text-secondary mb-2" />
             )}
-            {message.text}
+            <p className="whitespace-pre-wrap">{message.text}</p>
           </div>
         ))}
       </div>
       <div className="border-t p-4">
+        <div className="flex gap-2 mb-2">
+          <Input
+            type="file"
+            id="recipe-upload"
+            className="hidden"
+            onChange={handleFileUpload}
+            accept=".txt,.pdf,.jpg,.jpeg,.png"
+          />
+          <label
+            htmlFor="recipe-upload"
+            className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 cursor-pointer"
+          >
+            <Upload className="h-4 w-4" />
+            Upload Recipe
+          </label>
+        </div>
         <div className="flex gap-2">
           <Input
             value={input}
