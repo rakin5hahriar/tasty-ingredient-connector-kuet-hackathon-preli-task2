@@ -10,6 +10,10 @@ interface Message {
   sender: "user" | "bot";
 }
 
+interface ChatResponse {
+  text: string;
+}
+
 const RecipeChat = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -38,7 +42,7 @@ const RecipeChat = () => {
     try {
       // Here we'll make the API call to OpenAI
       // For now, we'll simulate the response
-      const response = await new Promise((resolve) => {
+      const response = await new Promise<ChatResponse>((resolve) => {
         setTimeout(() => {
           resolve({
             text: "Based on your ingredients and preferences, I recommend trying a homemade pasta! You have flour and eggs, which are the basic ingredients needed. Would you like the full recipe?",
