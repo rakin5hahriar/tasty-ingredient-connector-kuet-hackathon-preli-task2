@@ -3,6 +3,7 @@ import { Send, CookingPot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: number;
@@ -40,24 +41,29 @@ const RecipeChat = () => {
     setIsLoading(true);
 
     try {
-      // Here we'll make the API call to OpenAI
-      // For now, we'll simulate the response
-      const response = await new Promise<ChatResponse>((resolve) => {
-        setTimeout(() => {
-          resolve({
-            text: "Based on your ingredients and preferences, I recommend trying a homemade pasta! You have flour and eggs, which are the basic ingredients needed. Would you like the full recipe?",
-          });
-        }, 1000);
+      // Get available ingredients from the ingredients list
+      const { data: ingredients } = await supabase
+        .from('ingredients')
+        .select('name')
+        .order('name');
+
+      const ingredientsList = ingredients?.map(ing => ing.name) || [];
+
+      const { data, error } = await supabase.functions.invoke('generate-recipe', {
+        body: { prompt: input, ingredients: ingredientsList },
       });
+
+      if (error) throw error;
 
       const botMessage = {
         id: Date.now() + 1,
-        text: response.text,
+        text: data.text,
         sender: "bot" as const,
       };
 
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
+      console.error('Error:', error);
       toast({
         title: "Error",
         description: "Failed to get recipe suggestions. Please try again.",
