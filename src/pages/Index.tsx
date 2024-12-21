@@ -1,12 +1,23 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import Header from "@/components/Header";
+import IngredientList from "@/components/IngredientList";
+import RecipeChat from "@/components/RecipeChat";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="container py-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg shadow-sm">
+            <h2 className="text-2xl font-display font-semibold p-4 border-b">My Ingredients</h2>
+            <IngredientList />
+          </div>
+          <div className="bg-white rounded-lg shadow-sm">
+            <h2 className="text-2xl font-display font-semibold p-4 border-b">Recipe Assistant</h2>
+            <RecipeChat />
+          </div>
+        </div>
+      </main>
     </div>
   );
 };
