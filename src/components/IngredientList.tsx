@@ -43,36 +43,70 @@ const IngredientList = () => {
   };
 
   const addIngredient = async () => {
-    if (newIngredient.trim()) {
-      const { data, error } = await supabase
-        .from('ingredients')
-        .insert([{
-          name: newIngredient,
-          quantity: 1,
-          unit: newUnit,
-          category: newCategory || 'Other'
-        }])
-        .select()
-        .single();
+    if (!newIngredient.trim()) return;
 
-      if (error) {
+    // First, check if ingredient already exists
+    const { data: existingIngredient } = await supabase
+      .from('ingredients')
+      .select('*')
+      .ilike('name', newIngredient.trim())
+      .single();
+
+    if (existingIngredient) {
+      // If ingredient exists, update its quantity
+      const { error: updateError } = await supabase
+        .from('ingredients')
+        .update({
+          quantity: existingIngredient.quantity + 1,
+          unit: newUnit,
+          category: newCategory || existingIngredient.category
+        })
+        .eq('id', existingIngredient.id);
+
+      if (updateError) {
         toast({
-          title: "Error adding ingredient",
-          description: error.message,
+          title: "Error updating ingredient",
+          description: updateError.message,
           variant: "destructive",
         });
         return;
       }
 
-      setIngredients([...ingredients, data]);
-      setNewIngredient("");
-      setNewUnit("pcs");
-      setNewCategory("");
+      toast({
+        title: "Ingredient updated",
+        description: `${newIngredient} quantity has been updated.`,
+      });
+    } else {
+      // If ingredient doesn't exist, create new one
+      const { error: insertError } = await supabase
+        .from('ingredients')
+        .insert([{
+          name: newIngredient.trim(),
+          quantity: 1,
+          unit: newUnit,
+          category: newCategory || 'Other'
+        }]);
+
+      if (insertError) {
+        toast({
+          title: "Error adding ingredient",
+          description: insertError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
         title: "Ingredient added",
         description: `${newIngredient} has been added to your inventory.`,
       });
     }
+
+    // Refresh ingredients list
+    await fetchIngredients();
+    setNewIngredient("");
+    setNewUnit("pcs");
+    setNewCategory("");
   };
 
   const updateQuantity = async (id: string, increment: boolean) => {
